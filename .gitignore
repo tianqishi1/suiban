@@ -3,3 +3,12 @@ __pycache__/
 *.db
 .env
 .admin-token
+tools/platform-tools/
+tools/*.zip
+tools/mika-usb.json
+tools/jdk17/
+tools/android-sdk/
+tools/mika-src/
+upstream/
+upstream-zip/
+gateway/build-log.txt
