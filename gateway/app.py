@@ -180,6 +180,34 @@ def list_models(request: Request):
             "data": [{"id": a, "object": "model", "created": 0, "owned_by": "suiban"} for a in MODEL_MAP]}
 
 
+def _mock_tool_call(fwd):
+    tools = fwd.get("tools") or []
+    first = tools[0] if tools else {}
+    fn = first.get("function", first)
+    name = fn.get("name", "ping")
+    schema = fn.get("parameters") or fn.get("inputSchema") or {}
+    props = schema.get("properties") or {}
+    required = schema.get("required") or list(props.keys())
+    args = {}
+    for k in required:
+        spec = props.get(k) or {}
+        t = spec.get("type", "string")
+        if spec.get("enum"):
+            args[k] = spec["enum"][0]
+        elif t in ("number", "integer"):
+            args[k] = 1
+        elif t == "boolean":
+            args[k] = True
+        elif t == "array":
+            args[k] = []
+        elif t == "object":
+            args[k] = {}
+        else:
+            args[k] = "test"
+    return {"id": "call_mock_1", "type": "function",
+            "function": {"name": name, "arguments": json.dumps(args, ensure_ascii=False)}}
+
+
 def mock_completion(fwd, dev, alias, real):
     usage = {"prompt_tokens": 100, "completion_tokens": 20, "total_tokens": 120}
     last = ""
@@ -187,25 +215,36 @@ def mock_completion(fwd, dev, alias, real):
     if msgs and isinstance(msgs[-1].get("content"), str):
         last = msgs[-1]["content"][:40]
     text = "【随办网关 MOCK】已收到请求。" + last
+    tool_call = _mock_tool_call(fwd) if fwd.get("tools") else None
+    base = {"id": "chatcmpl-mock", "object": "chat.completion.chunk",
+            "created": int(time.time()), "model": real}
     if fwd.get("stream"):
         async def gen():
-            for piece in ["【随办网关", " MOCK】", "已收到请求。" + last]:
-                chunk = {"id": "chatcmpl-mock", "object": "chat.completion.chunk",
-                         "created": int(time.time()), "model": real,
-                         "choices": [{"index": 0, "delta": {"content": piece}, "finish_reason": None}]}
-                yield "data: " + json.dumps(chunk, ensure_ascii=False) + "\n\n"
-            done = {"id": "chatcmpl-mock", "object": "chat.completion.chunk", "created": int(time.time()),
-                    "model": real, "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}]}
-            yield "data: " + json.dumps(done, ensure_ascii=False) + "\n\n"
+            if tool_call:
+                d1 = {"role": "assistant", "tool_calls": [{"index": 0, "id": tool_call["id"], "type": "function",
+                      "function": {"name": tool_call["function"]["name"], "arguments": ""}}]}
+                yield "data: " + json.dumps(dict(base, choices=[{"index": 0, "delta": d1, "finish_reason": None}]), ensure_ascii=False) + "\n\n"
+                d2 = {"tool_calls": [{"index": 0, "function": {"arguments": tool_call["function"]["arguments"]}}]}
+                yield "data: " + json.dumps(dict(base, choices=[{"index": 0, "delta": d2, "finish_reason": None}]), ensure_ascii=False) + "\n\n"
+                finish = "tool_calls"
+            else:
+                for piece in ["【随办网关", " MOCK】", "已收到请求。" + last]:
+                    yield "data: " + json.dumps(dict(base, choices=[{"index": 0, "delta": {"content": piece}, "finish_reason": None}]), ensure_ascii=False) + "\n\n"
+                finish = "stop"
+            yield "data: " + json.dumps(dict(base, choices=[{"index": 0, "delta": {}, "finish_reason": finish}]), ensure_ascii=False) + "\n\n"
             yield "data: " + json.dumps({"id": "chatcmpl-mock", "choices": [], "usage": usage}) + "\n\n"
             yield "data: [DONE]\n\n"
             record_usage(dev["id"], alias, real, usage)
         return StreamingResponse(gen(), media_type="text/event-stream")
     record_usage(dev["id"], alias, real, usage)
+    if tool_call:
+        message = {"role": "assistant", "content": None, "tool_calls": [tool_call]}
+        finish = "tool_calls"
+    else:
+        message = {"role": "assistant", "content": text}
+        finish = "stop"
     return JSONResponse({"id": "chatcmpl-mock", "object": "chat.completion", "created": int(time.time()),
-                         "model": real,
-                         "choices": [{"index": 0, "message": {"role": "assistant", "content": text},
-                                      "finish_reason": "stop"}],
+                         "model": real, "choices": [{"index": 0, "message": message, "finish_reason": finish}],
                          "usage": usage})
 
 

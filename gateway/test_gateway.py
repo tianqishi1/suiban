@@ -54,6 +54,12 @@ check("usage metered", r.json()["usage"]["total_tokens"] == 120)
 r = client.post("/v1/chat/completions", json=dict(body, stream=True), headers=AUTH)
 check("chat stream", r.status_code == 200 and "[DONE]" in r.text and "data:" in r.text)
 
+tool_body = dict(body, tools=[{"type": "function", "function": {"name": "ping", "description": "test", "parameters": {"type": "object", "properties": {"q": {"type": "string"}}, "required": ["q"]}}}])
+r = client.post("/v1/chat/completions", json=tool_body, headers=AUTH)
+tc = r.json()["choices"][0]["message"].get("tool_calls")
+check("mock tool_calls", r.status_code == 200 and tc and tc[0]["function"]["name"] == "ping" and r.json()["choices"][0]["finish_reason"] == "tool_calls")
+r = client.post("/v1/chat/completions", json=dict(tool_body, stream=True), headers=AUTH)
+check("mock tool_calls stream", r.status_code == 200 and "tool_calls" in r.text and "ping" in r.text)
 r = client.post("/v1/chat/completions", json=dict(body, model="gpt-4o"), headers=AUTH)
 check("unknown model 404", r.status_code == 404)
 
