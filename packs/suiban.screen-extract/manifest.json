@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "id": "suiban.screen-extract",
+  "name": "随办·屏幕信息抽取",
+  "version": "0.1.0",
+  "kind": "capability",
+  "minApp": "0.1.46",
+  "author": "随办",
+  "description": "把当前页面（订单/商品/名片/聊天要点）提取成结构化表格，存工作区文件或按用户要求回传。只提取屏幕上有的事实。",
+  "skills": [
+    { "name": "screen-extract", "path": "skills/screen-extract", "display": "屏幕信息抽取" }
+  ]
+}

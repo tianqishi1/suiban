@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "id": "suiban.patrol-report",
+  "name": "随办·定时巡检播报",
+  "version": "0.1.0",
+  "kind": "capability",
+  "minApp": "0.1.46",
+  "author": "随办",
+  "description": "按用户定的频率盯指定页面（竞对价格/店铺评价/库存），只播报变化，报告推送到用户指定的渠道。",
+  "skills": [
+    { "name": "patrol-report", "path": "skills/patrol-report", "display": "定时巡检播报" }
+  ]
+}

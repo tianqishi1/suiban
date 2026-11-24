@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "id": "suiban.reply-advisor",
+  "name": "随办·消息回复顾问",
+  "version": "0.1.0",
+  "kind": "capability",
+  "minApp": "0.1.46",
+  "author": "随办",
+  "description": "看懂当前聊天界面，给 3 条可直接使用的候选回复。默认只给建议不代发；微信场景永远不自动发送。",
+  "skills": [
+    { "name": "reply-advisor", "path": "skills/reply-advisor", "display": "消息回复顾问" }
+  ]
+}
